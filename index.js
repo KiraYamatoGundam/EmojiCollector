@@ -1,20 +1,25 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Colors } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-// -------------------- CONFIGURATION --------------------
+// Vérification des variables d'environnement
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+if (!TOKEN) {
+    console.error('❌ Le TOKEN du bot n\'est pas défini dans les variables d\'environnement.');
+    process.exit(1);
+}
+
+if (!CLIENT_ID) {
+    console.error('❌ Le CLIENT_ID du bot n\'est pas défini dans les variables d\'environnement.');
+    process.exit(1);
+}
+
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildEmojisAndStickers]
 });
 
-const TOKEN = process.env.TOKEN; // Token du bot dans .env
-const LOG_CHANNEL_ID = '1431967406670086184'; // ID du salon où envoyer les logs emojis
-
-if (!TOKEN) {
-    console.error("❌ Le token du bot n'est pas défini ! Vérifie ton .env");
-    process.exit(1);
-}
-
-// -------------------- COMMANDES SLASH --------------------
+// Commande slash : /serveremojis
 const commands = [
     new SlashCommandBuilder()
         .setName('serveremojis')
@@ -27,24 +32,21 @@ const commands = [
         .toJSON()
 ];
 
+// Déploiement de la commande
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-// Déploiement des commandes slash
-client.once('ready', async () => {
-    console.log(`${client.user.tag} est en ligne !`);
-
+(async () => {
     try {
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands }
-        );
+        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
         console.log('✅ Commandes slash enregistrées.');
     } catch (err) {
         console.error('❌ Erreur lors de l\'enregistrement des commandes :', err);
     }
+})();
+
+client.on('ready', () => {
+    console.log(`${client.user.tag} est en ligne !`);
 });
 
-// -------------------- GESTION DES COMMANDES --------------------
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -66,32 +68,29 @@ client.on('interactionCreate', async interaction => {
         const embed = new EmbedBuilder()
             .setTitle(`😄 Émojis de ${guild.name}`)
             .setDescription(emojis.map(e => e.toString()).join(' '))
-            .setColor(Colors.Random);
+            .setColor('Random');
 
         await interaction.reply({ embeds: [embed] });
     }
 });
 
-// -------------------- LISTENER : RÉCUPÉRATION AUTOMATIQUE --------------------
+// -------------------- Listener : récupération auto des emojis --------------------
+const LOG_CHANNEL_ID = '1431967406670086184'; // Salon pour logs d'emojis
+
 client.on('guildCreate', async guild => {
-    const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (!logChannel) {
-        console.log(`❌ Salon de logs introuvable (ID ${LOG_CHANNEL_ID})`);
+        console.warn(`❌ Salon de logs introuvable (ID ${LOG_CHANNEL_ID}) sur ${guild.name}`);
         return;
     }
 
-    const emojis = guild.emojis.cache;
-    const description = emojis.size ? emojis.map(e => e.toString()).join(' ') : 'Aucun émoji trouvé.';
-
+    const description = guild.emojis.cache.size > 0 ? guild.emojis.cache.map(e => e.toString()).join(' ') : 'Aucun émoji trouvé.';
     const embed = new EmbedBuilder()
         .setTitle(`📜 Émojis du serveur : ${guild.name}`)
         .setDescription(description)
-        .setColor(Colors.Random)
-        .setTimestamp()
-        .setFooter({ text: `ID du serveur : ${guild.id}` });
+        .setColor('Random');
 
     await logChannel.send({ embeds: [embed] });
 });
 
-// -------------------- LOGIN --------------------
 client.login(TOKEN);

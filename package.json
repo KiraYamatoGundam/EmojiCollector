@@ -1,0 +1,14 @@
+{
+  "name": "emoji-collector-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord pour lister les emojis d'un serveur",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.0",
+    "dotenv": "^16.3.1"
+  }
+}
